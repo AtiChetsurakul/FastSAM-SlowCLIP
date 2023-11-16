@@ -122,7 +122,7 @@ class FastSAMPrompt:
         plt.margins(0, 0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())
         plt.gca().yaxis.set_major_locator(plt.NullLocator())
-
+        # print(len(annotations), ' ----<><><><><><>')
         plt.imshow(image)
         if better_quality:
             if isinstance(annotations[0], torch.Tensor):
@@ -132,6 +132,7 @@ class FastSAMPrompt:
                 annotations[i] = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((8, 8), np.uint8))
         if self.device == 'cpu':
             annotations = np.array(annotations)
+            # print(annotations.shape)
             self.fast_show_mask(
                 annotations,
                 plt.gca(),
@@ -296,11 +297,14 @@ class FastSAMPrompt:
         target_width=960,
     ):
         msak_sum = annotation.shape[0]
+        
         height = annotation.shape[1]
         weight = annotation.shape[2]
         areas = torch.sum(annotation, dim=(1, 2))
         sorted_indices = torch.argsort(areas, descending=False)
+        # print(msak_sum,height,weight)
         annotation = annotation[sorted_indices]
+        # print(annotation)
         # Find the index of the first non-zero value at each position.
         index = (annotation != 0).to(torch.long).argmax(dim=0)
         if random_color:
@@ -357,7 +361,7 @@ class FastSAMPrompt:
     #     return probs[:, 0].softmax(dim=0)
 
     @torch.no_grad()
-    def retrieve(self,cropped_boxes):
+    def retrieve(self,cropped_boxes,idx_observation,objstr = []):
         preprocessed_images = [self.processer(image).to(self.device) for image in cropped_boxes]
         tacked_images = torch.stack(preprocessed_images)
         imgs_feat = self.img_encoder.encode_image(tacked_images).float()
@@ -366,22 +370,24 @@ class FastSAMPrompt:
         sf_machnituce = np.exp(machnituce)/np.sum(np.exp(machnituce))
         ans_per_img  = sf_machnituce.argmax(axis =1)
 
+        for inx, i in enumerate(cropped_boxes):
+            if ans_per_img[inx] in idx_observation:
+                i.save(f'output/temp/{inx}_{objstr[ans_per_img[inx]]}.jpg')
+        print(ans_per_img)
         return ans_per_img
 
 
-    def prep_texts_prompt(self,idx_observation):
+    def prep_texts_prompt(self,idx_observation,objstr = []):
         if self.results == None:
             return []
         format_results = self._format_results(self.results[0], 0)
         cropped_boxes, cropped_images, not_crop, filter_id, annotations = self._crop_image(format_results)
-        # clip_model, preprocess = clip.load('ViT-B/32', device=self.device)
         
-        scores = self.retrieve(cropped_boxes)#, device=self.device)
-        for i in scores:
-            if i in idx_observation:
-                print('yay')
-        test = [ annotations[i]['segmentation']  for i in scores if i in idx_observation]
+        scores = self.retrieve(cropped_boxes,idx_observation=idx_observation,objstr=objstr)#, device=self.device)
 
+        test = [ annotations[i]['segmentation']  for i in scores if int(i) in  idx_observation]
+        # for imx,i in enumerate(cropped_boxes):
+        #     i.save(f'{imx}___.jpg')
         return np.array(test)
 
         # max_idx = scores.argsort()
@@ -417,7 +423,8 @@ class FastSAMPrompt:
                 filter_id.append(_)
                 continue
             bbox = self._get_bbox_from_mask(mask['segmentation'])  # mask 的 bbox
-            cropped_boxes.append(self._segment_image(image, bbox))  
+            # cropped_boxes.append(self._segment_image(image, bbox)) 
+            cropped_boxes.append(image.crop(bbox)) 
             # cropped_boxes.append(segment_image(image,mask["segmentation"]))
             cropped_images.append(bbox)  # Save the bounding box of the cropped image.
 

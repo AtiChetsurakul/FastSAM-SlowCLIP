@@ -10,16 +10,13 @@ except Exception as e:
     print(f'{e}', 'we use open-clip instead please search on google about |open-clip| for more detail')
     raise
 
+
+# STATIC
+
 model_path = '/home/works/FastSAM-x.pt'
-img_path = 'images/test1.png'
+# img_path = 'images/testFae.png'
 imgsz = 1024
-iou = 0.9
 
-text_prompt = 'the box, the luggage, the bag ,a person ,the road, a light,the traffic cone,the road sign, the car, the number digits, The white road line, A background'
-
-idx_obs = [0,1,2,3]
-# idx_obs = None
-conf = 0.4
 device = torch.device(
     "cuda"
     if torch.cuda.is_available()
@@ -28,7 +25,7 @@ device = torch.device(
     else "cpu"
 )
 randomcolor = True
-withContours = True
+withContours = False
 retina = True
 
 
@@ -37,6 +34,30 @@ model = FastSAM(model_path)
 clip_coder,_,clip_preprocess = open_clip.create_model_and_transforms('ViT-B-16', pretrained='datacomp_l_s1b_b8k')
 tokenizer = open_clip.get_tokenizer('ViT-B-16')
 clip_coder.to(device)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# INPUT
+text_prompt = 'the road,the road cone,the road sign, the car, the box, the luggage, the bag,the people'
+idx_obs = [1]
+iou = 0.9
+conf = 0.4
+img_path = ''
+
+
+
+
 
 # Get image here
 textPrepList = text_prompt.split(',')
@@ -73,13 +94,12 @@ point_label = None
 # prompt_process = FastSAMPrompt(input, everything_results, device=device)
 prompt_process = FastSAMPrompt(input,everything_results,clip_coder,text_features,clip_preprocess)
 if idx_obs != None:
-    ann = prompt_process.prep_texts_prompt(idx_observation = idx_obs,objstr=textPrepList)
+    ann = prompt_process.prep_texts_prompt(idx_observation = idx_obs)
 
 else:
     ann = prompt_process.everything_prompt()
 
 print(ann.shape)
-# print('hihihihihihihi')
 
 prompt_process.plot(
     annotations=ann,

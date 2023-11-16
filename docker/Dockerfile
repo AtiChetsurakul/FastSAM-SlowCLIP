@@ -24,6 +24,8 @@ RUN pip install -r https://raw.githubusercontent.com/CASIA-IVA-Lab/FastSAM/main/
 
 RUN gdown 1m1sjY4ihXBU1fZXdQ-Xdj-mDltW-2Rqv
 RUN pip install opencv-python==4.8.0.74
+
+RUN pip install streamlit
 # RUN pip install streamlit pymilvus[client] deep-translator 
 # # FROM pytorch/pytorch:2.0.0-cuda11.7-cudnn8-devel
 
