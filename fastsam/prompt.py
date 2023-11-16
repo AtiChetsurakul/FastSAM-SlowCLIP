@@ -7,24 +7,30 @@ import torch
 from .utils import image_to_np_ndarray
 from PIL import Image
 
+
 try:
-    import clip  # for linear_assignment
+    import open_clip
+except Exception as e:
+    print(f'{e}', 'we use open-clip instead please search on google about |open-clip| for more detail')
+    raise
 
-except (ImportError, AssertionError, AttributeError):
-    from ultralytics.yolo.utils.checks import check_requirements
 
-    check_requirements('git+https://github.com/openai/CLIP.git')  # required before installing lap from source
-    import clip
 
 
 class FastSAMPrompt:
-
-    def __init__(self, image, results, device='cuda'):
+# we change the CLIP model loading into here instead, no loading for each plot, I guess
+    def __init__(self, image, results,image_encoder,pre_texts_norm, device='cuda'):
         if isinstance(image, str) or isinstance(image, Image.Image):
             image = image_to_np_ndarray(image)
         self.device = device
         self.results = results
         self.img = image
+        self.img_encoder = image_encoder
+        self.feat_texts = pre_texts_norm
+        # 'ViT-B-16', 'datacomp_xl_s13b_b90k'
+        # self.model,_,self.preprocess = open_clip.create_model_and_transforms('ViT-B-16', pretrained='datacomp_xl_s13b_b90k')
+        # self.tokenizer = open_clip.get_tokenizer('ViT-B-16')
+
     
     def _segment_image(self, image, bbox):
         if isinstance(image, Image.Image):
@@ -337,17 +343,40 @@ class FastSAMPrompt:
         ax.imshow(show_cpu)
 
     # clip
-    @torch.no_grad()
-    def retrieve(self, model, preprocess, elements, search_text: str, device) -> int:
-        preprocessed_images = [preprocess(image).to(device) for image in elements]
-        tokenized_text = clip.tokenize([search_text]).to(device)
-        stacked_images = torch.stack(preprocessed_images)
-        image_features = model.encode_image(stacked_images)
-        text_features = model.encode_text(tokenized_text)
-        image_features /= image_features.norm(dim=-1, keepdim=True)
-        text_features /= text_features.norm(dim=-1, keepdim=True)
-        probs = 100.0 * image_features @ text_features.T
-        return probs[:, 0].softmax(dim=0)
+    # @torch.no_grad()
+    # def retrieve(self, model, preprocess, elements, search_text: str, device) -> int:
+    #     preprocessed_images = [preprocess(image).to(device) for image in elements]
+    #     tokenized_text = self.tokenizer.tokenize([search_text]).to(device)
+    #     stacked_images = torch.stack(preprocessed_images)
+    #     image_features = self.model.encode_image(stacked_images)
+    #     text_features = self.model.encode_text(tokenized_text)
+    #     image_features /= image_features.norm(dim=-1, keepdim=True)
+    #     text_features /= text_features.norm(dim=-1, keepdim=True)
+    #     probs = 100.0 * image_features @ text_features.T
+    #     return probs[:, 0].softmax(dim=0)
+
+
+    # def prep_texts_prompt(self):
+    #     if self.results == None:
+    #         return []
+    #     format_results = self._format_results(self.results[0], 0)
+    #     cropped_boxes, cropped_images, not_crop, filter_id, annotations = self._crop_image(format_results)
+    #     # clip_model, preprocess = clip.load('ViT-B/32', device=self.device)
+        
+    #     scores = self.retrieve(self.model, self.preprocess, cropped_boxes, text, device=self.device)
+    #     max_idx = scores.argsort()
+    #     max_idx = max_idx[-1]
+    #     max_idx += sum(np.array(filter_id) <= int(max_idx))
+    #     return np.array([annotations[max_idx]['segmentation']])
+
+    # def prepared_ahead_texts(self,sentences):
+    #     tokenized_text = self.tokenizer.tokenize([sentences])
+    #     text_features = self.model.encode_text(tokenized_text).float()
+    #     text_features /= text_features.norm(dim=-1, keepdim=True)
+    #     self.prep_text = text_features
+
+
+
 
     def _crop_image(self, format_results):
 
@@ -436,17 +465,18 @@ class FastSAMPrompt:
         onemask = onemask >= 1
         return np.array([onemask])
 
-    def text_prompt(self, text):
-        if self.results == None:
-            return []
-        format_results = self._format_results(self.results[0], 0)
-        cropped_boxes, cropped_images, not_crop, filter_id, annotations = self._crop_image(format_results)
-        clip_model, preprocess = clip.load('ViT-B/32', device=self.device)
-        scores = self.retrieve(clip_model, preprocess, cropped_boxes, text, device=self.device)
-        max_idx = scores.argsort()
-        max_idx = max_idx[-1]
-        max_idx += sum(np.array(filter_id) <= int(max_idx))
-        return np.array([annotations[max_idx]['segmentation']])
+    # def text_prompt(self, text):
+    #     if self.results == None:
+    #         return []
+    #     format_results = self._format_results(self.results[0], 0)
+    #     cropped_boxes, cropped_images, not_crop, filter_id, annotations = self._crop_image(format_results)
+    #     # clip_model, preprocess = clip.load('ViT-B/32', device=self.device)
+        
+    #     scores = self.retrieve(self.model, self.preprocess, cropped_boxes, text, device=self.device)
+    #     max_idx = scores.argsort()
+    #     max_idx = max_idx[-1]
+    #     max_idx += sum(np.array(filter_id) <= int(max_idx))
+    #     return np.array([annotations[max_idx]['segmentation']])
 
     def everything_prompt(self):
         if self.results == None:
