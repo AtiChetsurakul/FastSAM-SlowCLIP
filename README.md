@@ -1,4 +1,13 @@
-![](assets/logo.png)
+# Fast-SAM and Slow-CLIP
+
+- This repo fork from FastSAM in order to modify the Prompt with CLIP part for more task, my task btw, it might change from ORIGINAL CLIP to OPEN-CLIP, the bigger CLIP and bigger pretraining dataset.
+
+
+
+
+
+
+<!-- ![](assets/logo.png)
 
 # Fast Segment Anything
 
@@ -269,4 +278,4 @@ If you find this project useful for your research, please consider citing the fo
 }
 ```
 
-[![Star History Chart](https://api.star-history.com/svg?repos=CASIA-IVA-Lab/FastSAM&type=Date)](https://star-history.com/#CASIA-IVA-Lab/FastSAM&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=CASIA-IVA-Lab/FastSAM&type=Date)](https://star-history.com/#CASIA-IVA-Lab/FastSAM&Date) -->
