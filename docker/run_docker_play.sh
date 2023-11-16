@@ -1,0 +1,1 @@
+docker run -it --gpus=all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 --rm --name "cliper-fastsam-service" -p 6973:50051 -v ${PWD}:/home/works/clip-app/ cliper-sam-service:2702.0

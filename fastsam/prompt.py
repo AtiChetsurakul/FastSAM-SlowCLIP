@@ -19,7 +19,7 @@ except Exception as e:
 
 class FastSAMPrompt:
 # we change the CLIP model loading into here instead, no loading for each plot, I guess
-    def __init__(self, image, results,image_encoder,pre_texts_norm, device='cuda'):
+    def __init__(self, image, results,image_encoder,pre_texts_norm,clip_preprocess, device='cuda'):
         if isinstance(image, str) or isinstance(image, Image.Image):
             image = image_to_np_ndarray(image)
         self.device = device
@@ -27,6 +27,7 @@ class FastSAMPrompt:
         self.img = image
         self.img_encoder = image_encoder
         self.feat_texts = pre_texts_norm
+        self.processer = clip_preprocess
         # 'ViT-B-16', 'datacomp_xl_s13b_b90k'
         # self.model,_,self.preprocess = open_clip.create_model_and_transforms('ViT-B-16', pretrained='datacomp_xl_s13b_b90k')
         # self.tokenizer = open_clip.get_tokenizer('ViT-B-16')
@@ -355,19 +356,38 @@ class FastSAMPrompt:
     #     probs = 100.0 * image_features @ text_features.T
     #     return probs[:, 0].softmax(dim=0)
 
+    @torch.no_grad()
+    def retrieve(self,cropped_boxes):
+        preprocessed_images = [self.processer(image).to(self.device) for image in cropped_boxes]
+        tacked_images = torch.stack(preprocessed_images)
+        imgs_feat = self.img_encoder.encode_image(tacked_images).float()
+        imgs_feat /= imgs_feat.norm(dim=-1, keepdim=True)
+        machnituce =  imgs_feat.cpu().numpy() @ self.feat_texts.cpu().numpy().T 
+        sf_machnituce = np.exp(machnituce)/np.sum(np.exp(machnituce))
+        ans_per_img  = sf_machnituce.argmax(axis =1)
 
-    # def prep_texts_prompt(self):
-    #     if self.results == None:
-    #         return []
-    #     format_results = self._format_results(self.results[0], 0)
-    #     cropped_boxes, cropped_images, not_crop, filter_id, annotations = self._crop_image(format_results)
-    #     # clip_model, preprocess = clip.load('ViT-B/32', device=self.device)
+        return ans_per_img
+
+
+    def prep_texts_prompt(self,idx_observation):
+        if self.results == None:
+            return []
+        format_results = self._format_results(self.results[0], 0)
+        cropped_boxes, cropped_images, not_crop, filter_id, annotations = self._crop_image(format_results)
+        # clip_model, preprocess = clip.load('ViT-B/32', device=self.device)
         
-    #     scores = self.retrieve(self.model, self.preprocess, cropped_boxes, text, device=self.device)
-    #     max_idx = scores.argsort()
-    #     max_idx = max_idx[-1]
-    #     max_idx += sum(np.array(filter_id) <= int(max_idx))
-    #     return np.array([annotations[max_idx]['segmentation']])
+        scores = self.retrieve(cropped_boxes)#, device=self.device)
+        for i in scores:
+            if i in idx_observation:
+                print('yay')
+        test = [ annotations[i]['segmentation']  for i in scores if i in idx_observation]
+
+        return np.array(test)
+
+        # max_idx = scores.argsort()
+        # max_idx = max_idx[-1]
+        # max_idx += sum(np.array(filter_id) <= int(max_idx))
+        # return np.array([annotations[max_idx]['segmentation']])
 
     # def prepared_ahead_texts(self,sentences):
     #     tokenized_text = self.tokenizer.tokenize([sentences])
