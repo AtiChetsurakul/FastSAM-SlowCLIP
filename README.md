@@ -2,6 +2,7 @@
 
 - This repo fork from FastSAM in order to modify the Prompt with CLIP part for more task, my task btw, it might change from ORIGINAL CLIP to OPEN-CLIP, the bigger CLIP and bigger pretraining dataset.
 
+a
 
 
 
